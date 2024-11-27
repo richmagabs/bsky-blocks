@@ -12,6 +12,8 @@ function App() {
   const [did, setDid] = useState('');
   const [blocklist, setBlocklist] = useState([]);
   const [editing, setEditing] = useState(false);
+  const [infoList, setInfoList] = useState([]);
+  const [fetchingInfo, setFetchingInfo] = useState(false);
 
   useEffect(() => {
     if (username !== paramUsername && !editing) {
@@ -78,38 +80,33 @@ function App() {
   }, [did, page, lastBatchCount]);
 
   useEffect(() => {
-    const fetchHandles = async () => {
-      const updatedBlocklist = [...blocklist];
-      let i = 0;
-      console.log(blocklist);
-      while (blocklist[i].handle && i < blocklist.length) {
-        i++;
-      }
-      console.log(`Fetching handles starting at index ${i}`);
-      let j = 0;
-      while (j < 10 && i + j < blocklist.length) {
-        console.log(`Fetching handle for index ${i + j}`);
+    const fetchInfo = async () => {
+      const nextTen = {};
+      const currentCount = Object.keys(infoList).length;
+      for (let i = 0; i < 10 && (i + currentCount) < blocklist.length; i++) {
+        console.log(`Fetching info for blocklist ${currentCount + i}`);
         await new Promise((resolve) => setTimeout(resolve, 100));
         try {
-          const handleResponse = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${blocklist[i + j].did}`);
+          const handleResponse = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${blocklist[currentCount + i].did}`);
           if (handleResponse.status === 200) {
-            const handleData = await handleResponse.json();
-            updatedBlocklist[i+j] = { ...updatedBlocklist[i + j], ...handleData }
+            nextTen[blocklist[currentCount+i].did] = await handleResponse.json();
           } else {
-            updatedBlocklist[i+j] = { ...updatedBlocklist[i + j], handle: 'Failed to fetch handle'}
+            nextTen[blocklist[currentCount+i].did] = {handle: 'Failed to fetch handle'};
           }
         } catch (error) {
           console.error(`Failed to fetch handle for DID: ${blocklist[i].did}`, error);
+          nextTen[blocklist[currentCount+i].did] = {handle: 'Failed to fetch handle'};
         }
-        j++;
       }
-      setBlocklist(updatedBlocklist);
+      setInfoList(prev => {return {...prev, ...nextTen}});
+      setFetchingInfo(false);
     };
 
-    if (lastBatchCount < 100 && blocklist.length && !blocklist[blocklist.length - 1].handle) {
-      fetchHandles();
+    if (blocklist.length > Object.keys(infoList).length && !fetchingInfo) {
+      setFetchingInfo(true);
+      fetchInfo();
     }
-  }, [blocklist, lastBatchCount]);
+  }, [blocklist, infoList, fetchingInfo]);
 
   const getRelativeTime = (date) => {
     const now = new Date();
@@ -168,11 +165,11 @@ function App() {
             <tr key={index}>
               <td data-label="#">&nbsp;{index + 1}</td>
               <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
-               &nbsp;{item.handle ? <><a href={`https://bsky.app/profile/${item.handle}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">{item.handle}</a> (<a href={`?username=${item.handle}`} title="View their block count">#</a>) (<a href={`https://clearsky.app/${item.handle}`} target="_blank" rel="noreferrer" title="View who they are blocking on clearsky.app">cs</a>)</> : item.did} 
+               &nbsp;{infoList[item.did] ? <><a href={`https://bsky.app/profile/${infoList[item.did].handle}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">{infoList[item.did].handle}</a> (<a href={`?username=${infoList[item.did].handle}`} title="View their block count">#</a>) (<a href={`https://clearsky.app/${infoList[item.did].handle}`} target="_blank" rel="noreferrer" title="View who they are blocking on clearsky.app">cs</a>)</> : item.did} 
               </td>
               <td data-label="When" title={item.blocked_date}>&nbsp;{getRelativeTime(item.blocked_date)}</td>
-              <td data-label="Name">&nbsp;{item.displayName || ''}</td>
-              <td data-label="Description">&nbsp;{item.description || ''}</td>
+              <td data-label="Name">&nbsp;{infoList[item.did]?.displayName || ''}</td>
+              <td data-label="Description">&nbsp;{infoList[item.did]?.description || ''}</td>
             </tr>
           ))}
         </tbody>
