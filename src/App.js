@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import MaterialIcon from 'material-icons-react';
 
 const paramUsername = (new URLSearchParams(window.location.search)).get('username') || 'trumpisourguy1.bsky.social';
 
@@ -167,7 +168,7 @@ function App() {
             <tr key={index}>
               <td data-label="#">&nbsp;{index + 1}</td>
               <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
-               &nbsp;{item.handle ? <a href={`https://bsky.app/profile/${item.handle}`} target="_blank" rel="noreferrer">{item.handle}</a> : item.did}
+               &nbsp;{item.handle ? <><a href={`https://bsky.app/profile/${item.handle}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">{item.handle}</a> (<a href={`?username=${item.handle}`} title="View their block count">#</a>) (<a href={`https://clearsky.app/${item.handle}`} target="_blank" rel="noreferrer" title="View who they are blocking on clearsky.app">cs</a>)</> : item.did} 
               </td>
               <td data-label="When" title={item.blocked_date}>&nbsp;{getRelativeTime(item.blocked_date)}</td>
               <td data-label="Name">&nbsp;{item.displayName || ''}</td>
