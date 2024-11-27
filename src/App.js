@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import MaterialIcon from 'material-icons-react';
 
 const paramUsername = (new URLSearchParams(window.location.search)).get('username') || 'trumpisourguy1.bsky.social';
 
