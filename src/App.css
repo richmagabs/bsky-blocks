@@ -58,3 +58,44 @@ table th {
   background-color: #04AA6D;
   color: white;
 }
+
+.responsive-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.responsive-table th, .responsive-table td {
+  padding: 8px;
+}
+
+.responsive-table th {
+  text-align: left;
+}
+
+@media screen and (max-width: 600px) {
+  .responsive-table thead {
+    display: none;
+  }
+
+  .responsive-table tr {
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .responsive-table td {
+    display: block;
+    text-align: left;
+    padding-left: 30%;
+    position: relative;
+  }
+
+  .responsive-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    width: 30%;
+    padding-left: 10px;
+    font-weight: bold;
+    text-align: left;
+  }
+}

@@ -1,23 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+const paramUsername = (new URLSearchParams(window.location.search)).get('username') || 'trumpisourguy1.bsky.social';
+
 function App() {
   const [page, setPage] = useState(1);
   const [lastBatchCount, setLastBatchCount] = useState(100);
   const [error, setError] = useState(null);
-  const [username, setUsername] = useState();
+  const [username, setUsername] = useState(paramUsername);
   const [did, setDid] = useState('');
   const [blocklist, setBlocklist] = useState([]);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    setUsername(new URLSearchParams(window.location.search).get('username'));
-  }, []);
+    if (username !== paramUsername && !editing) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('username', username);
+      window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+      window.location.reload();
+    }
+  }, [username, editing]);
 
   useEffect(() => {
     const fetchDid = async () => {
       try {
         // Fetch the DID
         const didResponse = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${username}`);
+        if (didResponse.status !== 200) {
+          setError("User not found");
+          return;
+        }
         const didData = await didResponse.json();
         setDid(didData.did);
       } catch (error) {
@@ -26,12 +38,7 @@ function App() {
     };
 
     if (username) {
-      setPage(1);
-      setLastBatchCount(100);
-      setError(null);
-      setDid('');
       fetchDid();
-      setBlocklist([]);
     }
   }, [username]);
 
@@ -120,15 +127,37 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>BlueSky Block Count</h1>
-        <div>User: <a style={{color: "white"}} href={`https://bsky.app/profile/${username}`} target="_blank" rel="noreferrer">{username}</a></div>
-        {error ? <p>Error: {error}</p> : <p>Block Count: {blocklist.length}</p>}
+        <div>User:&nbsp;
+        {editing ? (
+          <input
+            type="text"
+            style={{display: "inline", width: "200px"}}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            onBlur={() => setEditing(false)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                setEditing(false);
+              }
+            }}
+          />
+        ) : (
+          <span
+            style={{ color: 'white', cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={() => setEditing(true)}
+          >
+            {username}
+          </span>
+        )}
+        {error ? <p>Error: {error}</p> : <p>Block Count: {blocklist.length}{lastBatchCount >= 100 ? '.'.repeat((blocklist.length % 3) + 1) : ''}</p>}
+        </div>
       </header>
-      <table style={{border: "1px solid"}}>
+      <table className="responsive-table">
         <thead>
           <tr>
             <th>#</th>
             <th>Handle/DID</th>
-            <th>When Blocked</th>
+            <th>When</th>
             <th>Name</th>
             <th>Description</th>
           </tr>
@@ -136,11 +165,13 @@ function App() {
         <tbody>
           {blocklist.map((item, index) => (
             <tr key={index}>
-              <td>{index + 1}</td>
-              <td style={{ textAlign: 'left' }}>{item.handle ? <a href={`https://bsky.app/profile/${item.handle}`} target="_blank" rel="noreferrer">{item.handle}</a> : item.did}</td>
-              <td>{getRelativeTime(item.blocked_date)}</td>
-              <td>{item.displayName || ''}</td>
-              <td>{item.description || ''}</td>
+              <td data-label="#">&nbsp;{index + 1}</td>
+              <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
+               &nbsp;{item.handle ? <a href={`https://bsky.app/profile/${item.handle}`} target="_blank" rel="noreferrer">{item.handle}</a> : item.did}
+              </td>
+              <td data-label="When" title={item.blocked_date}>&nbsp;{getRelativeTime(item.blocked_date)}</td>
+              <td data-label="Name">&nbsp;{item.displayName || ''}</td>
+              <td data-label="Description">&nbsp;{item.description || ''}</td>
             </tr>
           ))}
         </tbody>
