@@ -164,7 +164,7 @@ function App() {
             <tr key={index}>
               <td data-label="#">&nbsp;{index + 1}</td>
               <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
-               &nbsp;{infoList[item.did] ? <><a href={`https://bsky.app/profile/${infoList[item.did].handle}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">{infoList[item.did].handle}</a> (<a href={`?username=${infoList[item.did].handle}`} title="View their block count">#</a>) (<a href={`https://clearsky.app/${infoList[item.did].handle}`} target="_blank" rel="noreferrer" title="View who they are blocking on clearsky.app">cs</a>)</> : item.did} 
+               &nbsp;<a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">{infoList[item.did]?.handle || item.did}</a> {infoList[item.did] ? <>(<a href={`?username=${infoList[item.did].handle}`} title="View their block count">#</a>) (<a href={`https://clearsky.app/${infoList[item.did].handle}`} target="_blank" rel="noreferrer" title="View who they are blocking on clearsky.app">cs</a>)</> : ''} 
               </td>
               <td data-label="When" title={item.blocked_date}>&nbsp;{getRelativeTime(item.blocked_date)}</td>
               <td data-label="Name">&nbsp;{infoList[item.did]?.displayName || ''}</td>
