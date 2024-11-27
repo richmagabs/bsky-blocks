@@ -123,12 +123,14 @@ function App() {
         <div>User: <a style={{color: "white"}} href={`https://bsky.app/profile/${username}`} target="_blank" rel="noreferrer">{username}</a></div>
         {error ? <p>Error: {error}</p> : <p>Block Count: {blocklist.length}</p>}
       </header>
-      <table>
+      <table style={{border: "1px solid"}}>
         <thead>
           <tr>
             <th>#</th>
             <th>Handle/DID</th>
             <th>When Blocked</th>
+            <th>Name</th>
+            <th>Description</th>
           </tr>
         </thead>
         <tbody>
@@ -137,6 +139,8 @@ function App() {
               <td>{index + 1}</td>
               <td style={{ textAlign: 'left' }}>{item.handle ? <a href={`https://bsky.app/profile/${item.handle}`} target="_blank" rel="noreferrer">{item.handle}</a> : item.did}</td>
               <td>{getRelativeTime(item.blocked_date)}</td>
+              <td>{item.displayName || ''}</td>
+              <td>{item.description || ''}</td>
             </tr>
           ))}
         </tbody>
