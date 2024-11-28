@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import CircularProgress from '@mui/material/CircularProgress';
+import { Tabs, Tab } from '@mui/material';
 
 const paramUsername = (new URLSearchParams(window.location.search)).get('username') || 'your-username-here.bsky.social';
 
 function App() {
-  const [page, setPage] = useState(1);
-  const [lastBatchCount, setLastBatchCount] = useState(100);
-  const [error, setError] = useState(null);
   const [username, setUsername] = useState(paramUsername);
   const [did, setDid] = useState('');
+  const [error, setError] = useState(null);
+
+  const [blockPage, setBlockPage] = useState(1);
+  const [lastBlockCount, setLastBlockCount] = useState(100);
   const [blocklist, setBlocklist] = useState([]);
+
+  const [listPage, setListPage] = useState(1);
+  const [lastListCount, setLastListCount] = useState(100);
+  const [lists, setLists] = useState([]);
+
   const [editing, setEditing] = useState(false);
   const [infoList, setInfoList] = useState([]);
   const [fetchingInfo, setFetchingInfo] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
 
   useEffect(() => {
     if (username !== paramUsername && !editing) {
@@ -70,7 +79,7 @@ function App() {
     const fetchPagedBlockList = async (username) => {
       try {
         // Fetch blocklist data until the blocklist array count is less than 100
-        const urlToTry = `https://api.clearsky.services/api/v1/anon/single-blocklist/${did}${page > 1 ? `/${page}` : ''}`;
+        const urlToTry = `https://api.clearsky.services/api/v1/anon/single-blocklist/${did}${blockPage > 1 ? `/${blockPage}` : ''}`;
         console.log(urlToTry);
         let attempts = 0;
         let blocklistResponse;
@@ -79,7 +88,7 @@ function App() {
           if (blocklistResponse.status === 200) {
             break;
           }
-          console.log(`Trying ${page} again...`);
+          console.log(`Trying block ${blockPage} again...`);
           await new Promise((resolve) => setTimeout(resolve, 100));
           attempts++;
         }
@@ -87,18 +96,52 @@ function App() {
           throw new Error('Failed to fetch blocklist data after 10 attempts');
         }
         const blocklistData = await blocklistResponse.json();
-        setLastBatchCount(blocklistData.data.blocklist.length);
+        setLastBlockCount(blocklistData.data.blocklist.length);
         setBlocklist((prev) => [...prev, ...blocklistData.data.blocklist]);
-        setPage((prev) => prev + 1);
+        setBlockPage((prev) => prev + 1);
       } catch (error) {
         setError(error.message);
       }
     };
 
-    if (did && lastBatchCount >= 100) {
+    if (did && lastBlockCount >= 100) {
       fetchPagedBlockList();
     }
-  }, [did, page, lastBatchCount]);
+  }, [did, blockPage, lastBlockCount]);
+
+  useEffect(() => {
+    const fetchPagedLists = async (username) => {
+      try {
+        // Fetch lists data until the lists array count is less than 100
+        const urlToTry = `https://api.clearsky.services/api/v1/anon/get-list/${did}${listPage > 1 ? `/${listPage}` : ''}`;
+        console.log(urlToTry);
+        let attempts = 0;
+        let listResponse;
+        while (attempts < 10) {
+          listResponse = await fetch(urlToTry);
+          if (listResponse.status === 200) {
+            break;
+          }
+          console.log(`Trying list ${listPage} again...`);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          attempts++;
+        }
+        if (listResponse.status !== 200) {
+          throw new Error('Failed to fetch list data after 10 attempts');
+        }
+        const listData = await listResponse.json();
+        setLastListCount(listData.data.lists.length);
+        setLists((prev) => [...prev, ...listData.data.lists]);
+        setListPage((prev) => prev + 1);
+      } catch (error) {
+        setError(error.message);
+      }
+    };
+
+    if (did && lastListCount >= 100) {
+      fetchPagedLists();
+    }
+  }, [did, listPage, lastListCount]);
 
   useEffect(() => {
     const fetchInfo = async () => {
@@ -142,6 +185,10 @@ function App() {
     return `${diffDays} days ago`;
   };
 
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -168,34 +215,70 @@ function App() {
             {username}
           </span>
         )}
-        {error ? <p>Error: {error}</p> : <p>Block Count: {blocklist.length}{lastBatchCount >= 100 ? '.'.repeat((blocklist.length % 3) + 1) : ''}</p>}
+        {error ? <p>Error: {error}</p> : ''}
+        <p>Block Count: {blocklist.length} </p>
+        <p>List Count: {lists.length}</p>
+        {lastBlockCount >= 100 && <CircularProgress size={20} />}
         </div>
       </header>
-      <table className="responsive-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Handle/DID</th>
-            <th>When</th>
-            <th>Name</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {blocklist.map((item, index) => (
-            <tr key={index}>
-              <td data-label="#">&nbsp;{index + 1}</td>
-              <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
-                <>&nbsp;<a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">{infoList[item.did]?.handle || item.did}</a> (<a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block count">#</a>) (<a href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View who they are blocking on clearsky.app">cs</a>)</>
-              </td>
-              <td data-label="When" title={item.blocked_date}>&nbsp;{getRelativeTime(item.blocked_date)}</td>
-              <td data-label="Name">&nbsp;{infoList[item.did]?.displayName || ''}</td>
-              <td data-label="Description">&nbsp;{infoList[item.did]?.description || ''}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+      <div>
+          <Tabs value={tabValue} onChange={handleTabChange} centered>
+            <Tab label="Blocks" />
+            <Tab label="Lists" />
+          </Tabs>
+          {tabValue === 0 && (
+            <table className="responsive-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Handle/DID</th>
+                  <th>When</th>
+                  <th>Name</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {blocklist.map((item, index) => (
+                  <tr key={index}>
+                    <td data-label="#">&nbsp;{index + 1}</td>
+                    <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
+                      <>&nbsp;<a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">{infoList[item.did]?.handle || item.did}</a> (<a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block count">#</a>) (<a href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View who they are blocking on clearsky.app">cs</a>)</>
+                    </td>
+                    <td data-label="When" title={item.blocked_date}>&nbsp;{getRelativeTime(item.blocked_date)}</td>
+                    <td data-label="Name">&nbsp;{infoList[item.did]?.displayName || ''}</td>
+                    <td data-label="Description">&nbsp;{infoList[item.did]?.description || ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {tabValue === 1 && (
+            <table className="responsive-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>List Name</th>
+                  <th>Description</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lists.map((item, index) => (
+                  <tr key={index}>
+                    <td data-label="#">&nbsp;{index + 1}</td>
+                    <td data-label="List Name" style={{ textAlign: 'left' }}>
+                      <>&nbsp;<a href={item.url.split('/lists/')[0]} target="_blank" rel="noreferrer" title="View the list on BlueSky">{item.name}</a></>
+                    </td>
+                    <td data-label="Description">&nbsp;{item.description || ''}</td>
+                    <td data-label="Created" title={item.created_date}>&nbsp;{getRelativeTime(item.created_date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+      );
+      </div>
+      </div>
   );
 }
 
