@@ -220,7 +220,7 @@ function App() {
         {error ? <p>Error: {error}</p> : ''}
         <p>Block Count: {blocklist.length} </p>
         <p>List Count: {lists.length}</p>
-        {lastBlockCount >= 100 && <CircularProgress size={30} style={{ color: 'white' }} />}
+        {lastBlockCount >= 100 && username !== 'your-username-here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
         </div>
       </header>
       <div>
