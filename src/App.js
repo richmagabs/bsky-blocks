@@ -259,17 +259,19 @@ function App() {
                   <th>#</th>
                   <th>List Name</th>
                   <th>Description</th>
+                  <th>Added</th>
                   <th>Created</th>
                 </tr>
               </thead>
               <tbody>
-                {lists.map((item, index) => (
+                {lists.sort((a, b) => new Date(b.date_added) - new Date(a.date_added)).map((item, index) => (
                   <tr key={index}>
                     <td data-label="#">&nbsp;{index + 1}</td>
                     <td data-label="List Name" style={{ textAlign: 'left' }}>
                       <>&nbsp;<a href={item.url.split('/lists/')[0]} target="_blank" rel="noreferrer" title="View the list on BlueSky">{item.name}</a></>
                     </td>
                     <td data-label="Description">&nbsp;{item.description || ''}</td>
+                    <td data-label="Added" title={item.date_added}>&nbsp;{getRelativeTime(item.date_added)}</td>
                     <td data-label="Created" title={item.created_date}>&nbsp;{getRelativeTime(item.created_date)}</td>
                   </tr>
                 ))}
