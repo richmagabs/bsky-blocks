@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Tabs, Tab, TextField } from '@mui/material';
+import PersonOffIcon from '@mui/icons-material/PersonOff';
+
 
 const paramUsername = new URLSearchParams(window.location.search).get('username') || 'your-username-here.bsky.social';
 
@@ -194,7 +196,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>BlueSky Block Count</h1>
+        <h1><PersonOffIcon/> BlueSky Block Count <PersonOffIcon/></h1>
         <div>
           User:&nbsp;
           {editing ? (
@@ -247,20 +249,17 @@ function App() {
                       <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">
                         {infoList[item.did]?.handle || item.did}
                       </a>{' '}
-                      (
                       <a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block count">
-                        #
+                        <PersonOffIcon fontSize="small" />
                       </a>
-                      ) (
                       <a
                         href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`}
                         target="_blank"
                         rel="noreferrer"
                         title="View who they are blocking on clearsky.app"
                       >
-                        cs
+                        <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
                       </a>
-                      )
                     </>
                   </td>
                   <td data-label="When" title={item.blocked_date}>
