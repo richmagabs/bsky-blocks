@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import CircularProgress from '@mui/material/CircularProgress';
-import { Tabs, Tab } from '@mui/material';
+import { Tabs, Tab, TextField } from '@mui/material';
 
 const paramUsername = (new URLSearchParams(window.location.search)).get('username') || 'your-username-here.bsky.social';
 
@@ -195,9 +195,8 @@ function App() {
         <h1>BlueSky Block Count</h1>
         <div>User:&nbsp;
         {editing ? (
-          <input
-            type="text"
-            style={{display: "inline", width: "200px"}}
+          <TextField
+            size="small"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             onBlur={() => setEditing(false)}
@@ -206,6 +205,9 @@ function App() {
                 setEditing(false);
               }
             }}
+            fullWidth
+            sx={{ input: { color: 'white' } }}
+            style={{ display: "inline" }}
           />
         ) : (
           <span
