@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
-const paramUsername = (new URLSearchParams(window.location.search)).get('username') || 'trumpisourguy1.bsky.social';
+const paramUsername = (new URLSearchParams(window.location.search)).get('username') || 'your-username-here.bsky.social';
 
 function App() {
   const [page, setPage] = useState(1);
@@ -57,14 +57,14 @@ function App() {
       }
     }
 
-    if (username) {
+    if (username && ! editing) {
       if (username.startsWith('did:')) {
         redirectToUsername();
-      } else {
+      } else if (username !== 'your-username-here.bsky.social') {
         fetchDid();
       }
     }
-  }, [username]);
+  }, [username, editing]);
 
   useEffect(() => {
     const fetchPagedBlockList = async (username) => {
