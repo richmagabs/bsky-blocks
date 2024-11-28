@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import CircularProgress from '@mui/material/CircularProgress';
-import { Tabs, Tab, TextField } from '@mui/material';
+import { Tabs, Tab, TextField, Tooltip } from '@mui/material';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
-
 
 const paramUsername = new URLSearchParams(window.location.search).get('username') || 'your-username-here.bsky.social';
 
@@ -19,6 +18,8 @@ function App() {
   const [listPage, setListPage] = useState(1);
   const [lastListCount, setLastListCount] = useState(100);
   const [lists, setLists] = useState([]);
+
+  const [joint, setJoint] = useState({});
 
   const [editing, setEditing] = useState(false);
   const [infoList, setInfoList] = useState([]);
@@ -176,6 +177,25 @@ function App() {
     }
   }, [blocklist, infoList, fetchingInfo]);
 
+  useEffect(() => {
+    const jointMap = new Map();
+
+    blocklist.forEach((blockItem, blockIndex) => {
+      lists.forEach((listItem, listIndex) => {
+        if (blockItem.did === listItem.did) {
+          if (!jointMap.has(blockItem.did)) {
+            jointMap.set(blockItem.did, []);
+          }
+          const item = { ...listItem, blocked_date: blockItem.blocked_date };
+          jointMap.get(blockItem.did).push(item);
+        }
+      });
+    });
+
+    console.log('SETTING JOINT', jointMap);
+    setJoint(Object.fromEntries(jointMap));
+  }, [blocklist, lists]);
+
   const getRelativeTime = (date) => {
     const now = new Date();
     const diff = Math.floor((now - new Date(date)) / 1000); // difference in seconds
@@ -193,12 +213,16 @@ function App() {
     setTabValue(newValue);
   };
 
+  console.log(Object.keys(joint));
+
   return (
     <div className="App">
       <header className="App-header">
-        <h1><PersonOffIcon/> BlueSky Block Count <PersonOffIcon/></h1>
+        <h1>
+          <PersonOffIcon /> BlueSky Block Count <PersonOffIcon />
+        </h1>
         <div>
-          User:&nbsp;
+          User:{' '}
           {editing ? (
             <TextField
               size="small"
@@ -220,13 +244,18 @@ function App() {
             </span>
           )}
           {error ? <p>Error: {error}</p> : ''}
-          <div style={{paddingTop: "10px"}}>{!error && lastBlockCount >= 100 && username !== 'your-username-here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}</div>
+          <div style={{ paddingTop: '10px' }}>
+            {!error && lastBlockCount >= 100 && username !== 'your-username-here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
+          </div>
         </div>
       </header>
       <div>
         <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label={`Blocked By (${blocklist.length})`} sx={{fontSize: "1.2em", fontWeight: "bold"}} />
-          <Tab label={`Lists (${lists.length})`} sx={{fontSize: "1.2em", fontWeight: "bold"}} />
+          <Tab label={`Blocked By (${blocklist.length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
+          <Tab label={`Lists (${lists.length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
+          <Tooltip arrow title={<h1>BLOCK these users if you make another account so to not be on their list again. They BOTH blocked you & listed you.</h1>}>
+            <Tab label={`BOTH (${Object.keys(joint).length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
+          </Tooltip>
         </Tabs>
         {tabValue === 0 && (
           <table className="responsive-table">
@@ -242,36 +271,32 @@ function App() {
             <tbody>
               {blocklist.map((item, index) => (
                 <tr key={index}>
-                  <td data-label="#">&nbsp;{index + 1}</td>
+                  <td data-label="#">{index + 1}</td>
                   <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
                     <>
-                      &nbsp;
-                      <a href={`?username=${infoList[item.did]?.handle || item.did}`}>
-                        {infoList[item.did]?.handle || item.did}
-                      </a>
-                      {' '}
+                      <a href={`?username=${infoList[item.did]?.handle || item.did}`}>{infoList[item.did]?.handle || item.did}</a>{' '}
                       <a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block & list count">
                         <PersonOffIcon fontSize="small" />
                       </a>
-                      <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their social profile on BlueSky">
-                        <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
-                      </a>
-                      {' '}
-                      <a
-                        href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="View who they are blocking on clearsky.app"
-                      >
-                        <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
-                      </a>
+                      <Tooltip arrow title="View their social profile on BlueSky">
+                        <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer">
+                          <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
+                        </a>
+                      </Tooltip>{' '}
+                      <Tooltip arrow title="View who they are blocking on ClearSky.app">
+                        <a href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer">
+                          <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
+                        </a>
+                      </Tooltip>
                     </>
                   </td>
-                  <td data-label="When" title={item.blocked_date}>
-                    &nbsp;{getRelativeTime(item.blocked_date)}
+                  <td data-label="When">
+                    <Tooltip arrow title={item.blocked_date.split('.')[0].replace('T', ' ')}>
+                      {getRelativeTime(item.blocked_date)}
+                    </Tooltip>
                   </td>
-                  <td data-label="Name">&nbsp;{infoList[item.did]?.displayName || ''}</td>
-                  <td data-label="Description">&nbsp;{infoList[item.did]?.description || ''}</td>
+                  <td data-label="Name">{infoList[item.did]?.displayName || ''}</td>
+                  <td data-label="Description">{infoList[item.did]?.description || ''}</td>
                 </tr>
               ))}
             </tbody>
@@ -293,24 +318,91 @@ function App() {
                 .sort((a, b) => new Date(b.date_added) - new Date(a.date_added))
                 .map((item, index) => (
                   <tr key={index}>
-                    <td data-label="#">&nbsp;{index + 1}</td>
+                    <td data-label="#">{index + 1}</td>
                     <td data-label="List Name" style={{ textAlign: 'left' }}>
-                      <>
-                        &nbsp;
-                        <a href={item.url.split('/lists/')[0]} target="_blank" rel="noreferrer" title="View the list on BlueSky">
+                      <Tooltip arrow title="View the list on BlueSky (may go to user profile instead)">
+                        <a href={item.url.split('/lists/')[0]} target="_blank" rel="noreferrer">
                           {item.name}
                         </a>
-                      </>
+                      </Tooltip>
                     </td>
-                    <td data-label="Description">&nbsp;{item.description || ''}</td>
-                    <td data-label="Added" title={item.date_added}>
-                      &nbsp;{getRelativeTime(item.date_added)}
+                    <td data-label="Description">{item.description || ''}</td>
+                    <td data-label="Added">
+                      <Tooltip arrow title={item.date_added.split('.')[0].replace('T', ' ')}>
+                        {getRelativeTime(item.date_added)}
+                      </Tooltip>
                     </td>
-                    <td data-label="Created" title={item.created_date}>
-                      &nbsp;{getRelativeTime(item.created_date)}
+                    <td data-label="Created">
+                      <Tooltip arrow title={item.created_date.split('.')[0].replace('T', ' ')}>
+                        {getRelativeTime(item.created_date)}
+                      </Tooltip>
                     </td>
                   </tr>
                 ))}
+            </tbody>
+          </table>
+        )}
+        {tabValue === 2 && (
+          <table className="responsive-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Handle/DID</th>
+                <th>BLOCKED</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Lists</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(joint).map((did, index) => {
+                const item = { did, blocked_date: joint[did][0].blocked_date };
+                console.log(item, did, index);
+                return (
+                  <tr key={index}>
+                    <td data-label="#">{index + 1}</td>
+                    <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
+                      <>
+                        <a href={`?username=${infoList[item.did]?.handle || item.did}`}>{infoList[item.did]?.handle || item.did}</a>{' '}
+                        <Tooltip arrow title="View their block & list count">
+                          <a href={`?username=${infoList[item.did]?.handle || item.did}`}>
+                            <PersonOffIcon fontSize="small" />
+                          </a>
+                        </Tooltip>
+                        <Tooltip arrow title="View their social profile on BlueSky">
+                          <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer">
+                            <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
+                          </a>
+                        </Tooltip>{' '}
+                        <Tooltip arrow title="View who they are blocking on ClearSky.app">
+                          <a href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer">
+                            <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
+                          </a>
+                        </Tooltip>
+                      </>
+                    </td>
+                    <td data-label="BLOCKED">
+                      <Tooltip arrow title={item.blocked_date.split('.')[0].replace('T', ' ')}>
+                      {getRelativeTime(item.blocked_date)}
+                      </Tooltip>
+                    </td>
+                    <td data-label="Name">{infoList[item.did]?.displayName || ''}</td>
+                    <td data-label="Description">{infoList[item.did]?.description || ''}</td>
+                    <td data-label="Lists">
+                      {joint[did].map((list, index) => (
+                        <>
+                          <Tooltip arrow title="View the list on BlueSky">
+                            <a key={index} href={list.url} target="_blank" rel="noreferrer">
+                              {list.name}
+                            </a>
+                          </Tooltip>
+                          <br />
+                        </>
+                      ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
