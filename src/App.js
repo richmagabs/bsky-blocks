@@ -276,7 +276,6 @@ function App() {
               </tbody>
             </table>
           )}
-      );
       </div>
       </div>
   );
