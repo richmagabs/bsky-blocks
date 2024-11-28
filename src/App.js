@@ -155,11 +155,11 @@ function App() {
           if (handleResponse.status === 200) {
             nextTen[blocklist[currentCount+i].did] = await handleResponse.json();
           } else {
-            nextTen[blocklist[currentCount+i].did] = {handle: 'Failed to fetch handle'};
+            nextTen[blocklist[currentCount+i].did] = {handle: blocklist[currentCount+i].did};
           }
         } catch (error) {
           console.error(`Failed to fetch handle for DID: ${blocklist[i].did}`, error);
-          nextTen[blocklist[currentCount+i].did] = {handle: 'Failed to fetch handle'};
+          nextTen[blocklist[currentCount+i].did] = {handle: blocklist[currentCount+i].did};
         }
       }
       setInfoList(prev => {return {...prev, ...nextTen}});
