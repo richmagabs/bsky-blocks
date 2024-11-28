@@ -223,7 +223,7 @@ function App() {
       </header>
       <div>
         <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label={`Blocks (${blocklist.length})`} sx={{fontSize: "1.2em", fontWeight: "bold"}} />
+          <Tab label={`Blocked By (${blocklist.length})`} sx={{fontSize: "1.2em", fontWeight: "bold"}} />
           <Tab label={`Lists (${lists.length})`} sx={{fontSize: "1.2em", fontWeight: "bold"}} />
         </Tabs>
         {tabValue === 0 && (
