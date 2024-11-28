@@ -3,7 +3,7 @@ import './App.css';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Tabs, Tab, TextField } from '@mui/material';
 
-const paramUsername = (new URLSearchParams(window.location.search)).get('username') || 'your-username-here.bsky.social';
+const paramUsername = new URLSearchParams(window.location.search).get('username') || 'your-username-here.bsky.social';
 
 function App() {
   const [username, setUsername] = useState(paramUsername);
@@ -38,7 +38,7 @@ function App() {
         // Fetch the DID
         const didResponse = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${username}`);
         if (didResponse.status !== 200) {
-          setError("User not found");
+          setError('User not found');
           return;
         }
         const didData = await didResponse.json();
@@ -52,7 +52,7 @@ function App() {
       try {
         const profileResponse = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${username}`);
         if (profileResponse.status !== 200) {
-          setError("Profile not found");
+          setError('Profile not found');
           return;
         }
         const profileData = await profileResponse.json();
@@ -64,9 +64,9 @@ function App() {
       } catch (error) {
         setError(error.message);
       }
-    }
+    };
 
-    if (username && ! editing) {
+    if (username && !editing) {
       if (username.startsWith('did:')) {
         redirectToUsername();
       } else if (username !== 'your-username-here.bsky.social') {
@@ -147,22 +147,24 @@ function App() {
     const fetchInfo = async () => {
       const nextTen = {};
       const currentCount = Object.keys(infoList).length;
-      for (let i = 0; i < 10 && (i + currentCount) < blocklist.length; i++) {
+      for (let i = 0; i < 10 && i + currentCount < blocklist.length; i++) {
         console.log(`Fetching info for blocklist ${currentCount + i}`);
         await new Promise((resolve) => setTimeout(resolve, 100));
         try {
           const handleResponse = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${blocklist[currentCount + i].did}`);
           if (handleResponse.status === 200) {
-            nextTen[blocklist[currentCount+i].did] = await handleResponse.json();
+            nextTen[blocklist[currentCount + i].did] = await handleResponse.json();
           } else {
-            nextTen[blocklist[currentCount+i].did] = {handle: blocklist[currentCount+i].did};
+            nextTen[blocklist[currentCount + i].did] = { handle: blocklist[currentCount + i].did };
           }
         } catch (error) {
           console.error(`Failed to fetch handle for DID: ${blocklist[i].did}`, error);
-          nextTen[blocklist[currentCount+i].did] = {handle: blocklist[currentCount+i].did};
+          nextTen[blocklist[currentCount + i].did] = { handle: blocklist[currentCount + i].did };
         }
       }
-      setInfoList(prev => {return {...prev, ...nextTen}});
+      setInfoList((prev) => {
+        return { ...prev, ...nextTen };
+      });
       setFetchingInfo(false);
     };
 
@@ -193,95 +195,123 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>BlueSky Block Count</h1>
-        <div>User:&nbsp;
-        {editing ? (
-          <TextField
-            size="small"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onBlur={() => setEditing(false)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                setEditing(false);
-              }
-            }}
-            fullWidth
-            sx={{ input: { color: 'white' } }}
-            style={{ display: "inline" }}
-          />
-        ) : (
-          <span
-            style={{ color: 'white', cursor: 'pointer', textDecoration: 'underline' }}
-            onClick={() => setEditing(true)}
-          >
-            {username}
-          </span>
-        )}
-        {error ? <p>Error: {error}</p> : ''}
-        <p>Block Count: {blocklist.length} </p>
-        <p>List Count: {lists.length}</p>
-        {lastBlockCount >= 100 && username !== 'your-username-here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
+        <div>
+          User:&nbsp;
+          {editing ? (
+            <TextField
+              size="small"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onBlur={() => setEditing(false)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  setEditing(false);
+                }
+              }}
+              fullWidth
+              sx={{ input: { color: 'white' } }}
+              style={{ display: 'inline' }}
+            />
+          ) : (
+            <span style={{ color: 'white', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setEditing(true)}>
+              {username}
+            </span>
+          )}
+          {error ? <p>Error: {error}</p> : ''}
+          <div style={{paddingTop: "10px"}}>{!error && lastBlockCount >= 100 && username !== 'your-username-here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}</div>
         </div>
       </header>
       <div>
-          <Tabs value={tabValue} onChange={handleTabChange} centered>
-            <Tab label="Blocks" />
-            <Tab label="Lists" />
-          </Tabs>
-          {tabValue === 0 && (
-            <table className="responsive-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Handle/DID</th>
-                  <th>When</th>
-                  <th>Name</th>
-                  <th>Description</th>
+        <Tabs value={tabValue} onChange={handleTabChange} centered>
+          <Tab label={`Blocks (${blocklist.length})`} sx={{fontSize: "1.2em", fontWeight: "bold"}} />
+          <Tab label={`Lists (${lists.length})`} sx={{fontSize: "1.2em", fontWeight: "bold"}} />
+        </Tabs>
+        {tabValue === 0 && (
+          <table className="responsive-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Handle/DID</th>
+                <th>When</th>
+                <th>Name</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {blocklist.map((item, index) => (
+                <tr key={index}>
+                  <td data-label="#">&nbsp;{index + 1}</td>
+                  <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
+                    <>
+                      &nbsp;
+                      <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">
+                        {infoList[item.did]?.handle || item.did}
+                      </a>{' '}
+                      (
+                      <a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block count">
+                        #
+                      </a>
+                      ) (
+                      <a
+                        href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="View who they are blocking on clearsky.app"
+                      >
+                        cs
+                      </a>
+                      )
+                    </>
+                  </td>
+                  <td data-label="When" title={item.blocked_date}>
+                    &nbsp;{getRelativeTime(item.blocked_date)}
+                  </td>
+                  <td data-label="Name">&nbsp;{infoList[item.did]?.displayName || ''}</td>
+                  <td data-label="Description">&nbsp;{infoList[item.did]?.description || ''}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {blocklist.map((item, index) => (
-                  <tr key={index}>
-                    <td data-label="#">&nbsp;{index + 1}</td>
-                    <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
-                      <>&nbsp;<a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">{infoList[item.did]?.handle || item.did}</a> (<a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block count">#</a>) (<a href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View who they are blocking on clearsky.app">cs</a>)</>
-                    </td>
-                    <td data-label="When" title={item.blocked_date}>&nbsp;{getRelativeTime(item.blocked_date)}</td>
-                    <td data-label="Name">&nbsp;{infoList[item.did]?.displayName || ''}</td>
-                    <td data-label="Description">&nbsp;{infoList[item.did]?.description || ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {tabValue === 1 && (
-            <table className="responsive-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>List Name</th>
-                  <th>Description</th>
-                  <th>Added</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lists.sort((a, b) => new Date(b.date_added) - new Date(a.date_added)).map((item, index) => (
+              ))}
+            </tbody>
+          </table>
+        )}
+        {tabValue === 1 && (
+          <table className="responsive-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>List Name</th>
+                <th>Description</th>
+                <th>Added</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lists
+                .sort((a, b) => new Date(b.date_added) - new Date(a.date_added))
+                .map((item, index) => (
                   <tr key={index}>
                     <td data-label="#">&nbsp;{index + 1}</td>
                     <td data-label="List Name" style={{ textAlign: 'left' }}>
-                      <>&nbsp;<a href={item.url.split('/lists/')[0]} target="_blank" rel="noreferrer" title="View the list on BlueSky">{item.name}</a></>
+                      <>
+                        &nbsp;
+                        <a href={item.url.split('/lists/')[0]} target="_blank" rel="noreferrer" title="View the list on BlueSky">
+                          {item.name}
+                        </a>
+                      </>
                     </td>
                     <td data-label="Description">&nbsp;{item.description || ''}</td>
-                    <td data-label="Added" title={item.date_added}>&nbsp;{getRelativeTime(item.date_added)}</td>
-                    <td data-label="Created" title={item.created_date}>&nbsp;{getRelativeTime(item.created_date)}</td>
+                    <td data-label="Added" title={item.date_added}>
+                      &nbsp;{getRelativeTime(item.date_added)}
+                    </td>
+                    <td data-label="Created" title={item.created_date}>
+                      &nbsp;{getRelativeTime(item.created_date)}
+                    </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          )}
+            </tbody>
+          </table>
+        )}
       </div>
-      </div>
+    </div>
   );
 }
 
