@@ -246,12 +246,17 @@ function App() {
                   <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
                     <>
                       &nbsp;
-                      <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their profile on BlueSky">
+                      <a href={`?username=${infoList[item.did]?.handle || item.did}`}>
                         {infoList[item.did]?.handle || item.did}
-                      </a>{' '}
-                      <a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block count">
+                      </a>
+                      {' '}
+                      <a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block & list count">
                         <PersonOffIcon fontSize="small" />
                       </a>
+                      <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer" title="View their social profile on BlueSky">
+                        <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
+                      </a>
+                      {' '}
                       <a
                         href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`}
                         target="_blank"
