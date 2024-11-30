@@ -4,36 +4,39 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { Tabs, Tab, TextField, Tooltip } from '@mui/material';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 
-const paramUsername = new URLSearchParams(window.location.search).get('username') || 'your-username-here.bsky.social';
+const paramUsername = new URLSearchParams(window.location.search).get('username') || 'your_username_here.bsky.social';
 
 function App() {
   const [username, setUsername] = useState(paramUsername);
   const [did, setDid] = useState('');
   const [error, setError] = useState(null);
 
+  const [blockersAndListers, setBlockersAndListers] = useState(new Map());
+
   const [blockPage, setBlockPage] = useState(1);
-  const [lastBlockCount, setLastBlockCount] = useState(100);
-  const [blocklist, setBlocklist] = useState([]);
+  const [allBlockersFetched, setAllBlockersFetched] = useState(false);
 
   const [listPage, setListPage] = useState(1);
-  const [lastListCount, setLastListCount] = useState(100);
-  const [lists, setLists] = useState([]);
+  const [allListsFetched, setAllListsFetched] = useState(false);
 
-  const [joint, setJoint] = useState({});
+  const [editingUsername, setEditingUsername] = useState(false);
 
-  const [editing, setEditing] = useState(false);
-  const [infoList, setInfoList] = useState([]);
-  const [fetchingInfo, setFetchingInfo] = useState(false);
+  const [fetchingProfiles, setFetchingProfiles] = useState(false);
+  const [lastProfileFetched, setLastProfileFetched] = useState('');
+
   const [tabValue, setTabValue] = useState(0);
 
+  const [userLists, setUserLists] = useState({});
+  const [fetchingUserLists, setFetchingUserLists] = useState(false);
+
   useEffect(() => {
-    if (username !== paramUsername && !editing) {
+    if (username !== paramUsername && !editingUsername) {
       const params = new URLSearchParams(window.location.search);
       params.set('username', username);
       window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
       window.location.reload();
     }
-  }, [username, editing]);
+  }, [username, editingUsername]);
 
   useEffect(() => {
     const fetchDid = async () => {
@@ -69,63 +72,70 @@ function App() {
       }
     };
 
-    if (username && !editing) {
+    if (username && !editingUsername) {
       if (username.startsWith('did:')) {
         redirectToUsername();
-      } else if (username !== 'your-username-here.bsky.social') {
+      } else if (username !== 'your_username_here.bsky.social') {
         fetchDid();
       }
     }
-  }, [username, editing]);
+  }, [username, editingUsername]);
 
   useEffect(() => {
     const fetchPagedBlockList = async (username) => {
       try {
         // Fetch blocklist data until the blocklist array count is less than 100
-        const urlToTry = `https://api.clearsky.services/api/v1/anon/single-blocklist/${did}${blockPage > 1 ? `/${blockPage}` : ''}`;
-        console.log(urlToTry);
+        const url = `https://api.clearsky.services/api/v1/anon/single-blocklist/${did}${blockPage > 1 ? `/${blockPage}` : ''}`;
         let attempts = 0;
         let blocklistResponse;
         while (attempts < 10) {
-          blocklistResponse = await fetch(urlToTry);
+          blocklistResponse = await fetch(url);
           if (blocklistResponse.status === 200) {
             break;
           }
-          console.log(`Trying block ${blockPage} again...`);
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          console.log(`Trying block page ${blockPage} again...`);
           attempts++;
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
         if (blocklistResponse.status !== 200) {
           throw new Error('Failed to fetch blocklist data after 10 attempts');
         }
         const blocklistData = await blocklistResponse.json();
-        setLastBlockCount(blocklistData.data.blocklist.length);
-        setBlocklist((prev) => [...prev, ...blocklistData.data.blocklist]);
+        blocklistData.data.blocklist.forEach((blocked) => {
+          setBlockersAndListers((prev) => {
+            const updatedMap = new Map(prev);
+            if (!updatedMap.has(blocked.did)) {
+              updatedMap.set(blocked.did, { did: blocked.did, lists: [], blocked: null });
+            }
+            updatedMap.get(blocked.did).blocked = blocked;
+            return updatedMap;
+          });
+        });
+        setAllBlockersFetched(blocklistData.data.blocklist.length < 100);
         setBlockPage((prev) => prev + 1);
       } catch (error) {
         setError(error.message);
       }
     };
 
-    if (did && lastBlockCount >= 100) {
+    if (did && !allBlockersFetched && !editingUsername) {
       fetchPagedBlockList();
     }
-  }, [did, blockPage, lastBlockCount]);
+  }, [did, blockPage, allBlockersFetched, editingUsername]);
 
   useEffect(() => {
     const fetchPagedLists = async (username) => {
       try {
         // Fetch lists data until the lists array count is less than 100
-        const urlToTry = `https://api.clearsky.services/api/v1/anon/get-list/${did}${listPage > 1 ? `/${listPage}` : ''}`;
-        console.log(urlToTry);
+        const url = `https://api.clearsky.services/api/v1/anon/get-list/${did}${listPage > 1 ? `/${listPage}` : ''}`;
         let attempts = 0;
         let listResponse;
         while (attempts < 10) {
-          listResponse = await fetch(urlToTry);
+          listResponse = await fetch(url);
           if (listResponse.status === 200) {
             break;
           }
-          console.log(`Trying list ${listPage} again...`);
+          console.log(`Trying list page ${listPage} again...`);
           await new Promise((resolve) => setTimeout(resolve, 100));
           attempts++;
         }
@@ -133,68 +143,138 @@ function App() {
           throw new Error('Failed to fetch list data after 10 attempts');
         }
         const listData = await listResponse.json();
-        setLastListCount(listData.data.lists.length);
-        setLists((prev) => [...prev, ...listData.data.lists]);
+        const lists = listData.data.lists;
+        setBlockersAndListers((prev) => {
+          const updatedMap = new Map(prev);
+          for (const list of lists) {
+            if (!updatedMap.has(list.did)) {
+              updatedMap.set(list.did, { did: list.did, lists: [], blocked: null });
+            }
+            const existingLists = updatedMap.get(list.did).lists;
+            if (!existingLists.some((existingList) => existingList.url === list.url)) {
+              existingLists.push(list);
+            }
+            if (!updatedMap.get(list.did).blocked && list?.purpose?.endsWith('#modlist')) {
+              updatedMap.get(list.did).blocked = { blocked_date: list.date_added, did: list.did };
+            }
+            if (list.creator && (!updatedMap.get(list.did).handle || updatedMap.get(list.did).handle === 'USER NOT FOUND')) {
+              updatedMap.set(list.did, { ...updatedMap.get(list.did), ...list.creator });
+            }
+          }
+          return updatedMap;
+        });
+        setAllListsFetched(listData.data.lists.length < 100);
         setListPage((prev) => prev + 1);
       } catch (error) {
         setError(error.message);
       }
     };
 
-    if (did && lastListCount >= 100) {
+    if (did && !allListsFetched && !editingUsername) {
       fetchPagedLists();
     }
-  }, [did, listPage, lastListCount]);
+  }, [did, listPage, allListsFetched, editingUsername]);
 
   useEffect(() => {
-    const fetchInfo = async () => {
-      const nextTen = {};
-      const currentCount = Object.keys(infoList).length;
-      for (let i = 0; i < 10 && i + currentCount < blocklist.length; i++) {
-        console.log(`Fetching info for blocklist ${currentCount + i}`);
-        await new Promise((resolve) => setTimeout(resolve, 100));
+    const fetchUserLists = async () => {
+      const uLists = {};
+      for (const [did, obj] of blockersAndListers) {
+        if (obj.lists.length === 0) {
+          continue;
+        }
         try {
-          const handleResponse = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${blocklist[currentCount + i].did}`);
-          if (handleResponse.status === 200) {
-            nextTen[blocklist[currentCount + i].did] = await handleResponse.json();
-          } else {
-            nextTen[blocklist[currentCount + i].did] = { handle: blocklist[currentCount + i].did };
-          }
+          const url = `https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=${did}`;
+          const getListsResponse = await fetch(url);
+          const getListData = await getListsResponse.json();
+          uLists[did] = getListData.lists;
         } catch (error) {
-          console.error(`Failed to fetch handle for DID: ${blocklist[i].did}`, error);
-          nextTen[blocklist[currentCount + i].did] = { handle: blocklist[currentCount + i].did };
+          console.error(`Failed to fetch user's lists for DID: ${did}`);
         }
       }
-      setInfoList((prev) => {
-        return { ...prev, ...nextTen };
-      });
-      setFetchingInfo(false);
+      setUserLists(uLists);
     };
 
-    if (blocklist.length > Object.keys(infoList).length && !fetchingInfo) {
-      setFetchingInfo(true);
-      fetchInfo();
+    if (!editingUsername && allListsFetched && blockersAndListers.size && !fetchingUserLists) {
+      setFetchingUserLists(true);
+      fetchUserLists();
     }
-  }, [blocklist, infoList, fetchingInfo]);
+  }, [blockersAndListers, allListsFetched, editingUsername, fetchingUserLists]);
 
   useEffect(() => {
-    const jointMap = new Map();
-
-    blocklist.forEach((blockItem, blockIndex) => {
-      lists.forEach((listItem, listIndex) => {
-        if (blockItem.did === listItem.did) {
-          if (!jointMap.has(blockItem.did)) {
-            jointMap.set(blockItem.did, []);
+    const addListInfo = async (username) => {
+      setBlockersAndListers((prev) => {
+        const updatedMap = new Map(prev);
+        for (const [did, obj] of updatedMap) {
+          if (userLists[did] && obj.lists.length > 0) {
+            const uLists = userLists[did];
+            if (uLists && uLists.length > 0) {
+              obj.lists.forEach((existingList, index) => {
+                const userList = uLists.find((list) => list.name === existingList.name);
+                if (userList) {
+                  userList.url = userList.uri.replace('at://', 'https://bsky.app/profile/').replace('app.bsky.graph.list', 'lists');
+                  obj.lists[index] = { ...existingList, ...userList };
+                  if (userList.purpose.endsWith('#modlist') && !obj.blocked) {
+                    obj.blocked = { blocked_date: existingList.date_added, did: did };
+                  }
+                }
+              });
+            }
           }
-          const item = { ...listItem, blocked_date: blockItem.blocked_date };
-          jointMap.get(blockItem.did).push(item);
         }
+        return updatedMap;
       });
-    });
+    };
 
-    console.log('SETTING JOINT', jointMap);
-    setJoint(Object.fromEntries(jointMap));
-  }, [blocklist, lists]);
+    if (Object.keys(userLists).length && !editingUsername) {
+      addListInfo();
+    }
+  }, [userLists, editingUsername]);
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const dids = [];
+      for (const obj of blockersAndListers.values()) {
+        if (!obj.handle) {
+          dids.push(obj.did);
+          if (dids.length >= 25) {
+            break;
+          }
+        }
+      }
+      if (!dids.length) {
+        setFetchingProfiles(false);
+        return;
+      }
+      try {
+        const params = new URLSearchParams();
+        dids.forEach((did) => params.append('actors', did));
+        const url = `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles?${params.toString()}`;
+        const profilesResponse = await fetch(url);
+        const profilesData = await profilesResponse.json();
+        setBlockersAndListers((prev) => {
+          const updatedMap = new Map(prev);
+          profilesData.profiles.forEach((profile) => {
+            updatedMap.set(profile.did, { ...updatedMap.get(profile.did), ...profile });
+          });
+          dids.forEach((did) => {
+            if (!updatedMap.get(did).handle) {
+              updatedMap.set(did, { ...updatedMap.get(did), handle: 'USER NOT FOUND' });
+            }
+          });
+          return updatedMap;
+        });
+      } catch (error) {
+        console.error(`Failed to fetch profiles for DIDs: ${dids.join(', ')}`);
+      }
+      setLastProfileFetched(dids[dids.length - 1]);
+      setFetchingProfiles(false);
+    };
+
+    if (!fetchingProfiles && blockersAndListers.size && (!lastProfileFetched || lastProfileFetched !== Array.from(blockersAndListers.keys()).pop())) {
+      setFetchingProfiles(true);
+      fetchProfiles();
+    }
+  }, [blockersAndListers, fetchingProfiles, lastProfileFetched]);
 
   const getRelativeTime = (date) => {
     const now = new Date();
@@ -213,8 +293,6 @@ function App() {
     setTabValue(newValue);
   };
 
-  console.log(Object.keys(joint));
-
   return (
     <div className="App">
       <header className="App-header">
@@ -223,15 +301,15 @@ function App() {
         </h1>
         <div>
           User:{' '}
-          {editing ? (
+          {editingUsername ? (
             <TextField
               size="small"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              onBlur={() => setEditing(false)}
+              onBlur={() => setEditingUsername(false)}
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
-                  setEditing(false);
+                  setEditingUsername(false);
                 }
               }}
               fullWidth
@@ -239,22 +317,25 @@ function App() {
               style={{ display: 'inline' }}
             />
           ) : (
-            <span style={{ color: 'white', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setEditing(true)}>
+            <span style={{ color: 'white', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setEditingUsername(true)}>
               {username}
             </span>
           )}
           {error ? <p>Error: {error}</p> : ''}
           <div style={{ paddingTop: '10px' }}>
-            {!error && lastBlockCount >= 100 && username !== 'your-username-here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
+            {!error && (!allBlockersFetched || !allListsFetched || !Object.keys(userLists).length) && username !== 'your_username_here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
           </div>
         </div>
       </header>
       <div>
         <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label={`Blocked By (${blocklist.length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
-          <Tab label={`Lists (${lists.length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
+          <Tab label={`Blocked By (${Array.from(blockersAndListers.values()).filter((item) => item.blocked !== null).length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
+          <Tab label={`Lists (${Array.from(blockersAndListers.values()).reduce((acc, item) => acc + item.lists.length, 0)})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
           <Tooltip arrow title={<h1>BLOCK these users if you make another account so to not be on their list again. They BOTH blocked you & listed you.</h1>}>
-            <Tab label={`BOTH (${Object.keys(joint).length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
+            <Tab
+              label={`BOTH (${Array.from(blockersAndListers.values()).filter((item) => item.blocked !== null && item.lists.length > 0).length})`}
+              sx={{ fontSize: '1.2em', fontWeight: 'bold' }}
+            />
           </Tooltip>
         </Tabs>
         {tabValue === 0 && (
@@ -269,36 +350,37 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {blocklist.map((item, index) => (
-                <tr key={index}>
-                  <td data-label="#">{index + 1}</td>
-                  <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
-                    <>
-                      <a href={`?username=${infoList[item.did]?.handle || item.did}`}>{infoList[item.did]?.handle || item.did}</a>{' '}
-                      <a href={`?username=${infoList[item.did]?.handle || item.did}`} title="View their block & list count">
+              {Array.from(blockersAndListers.values())
+                .filter((item) => item.blocked)
+                .sort((a, b) => new Date(b.blocked.blocked_date) - new Date(a.blocked.blocked_date))
+                .map((item, index) => (
+                  <tr key={index} style={{ backgroundColor: item.lists.length ? 'yellow' : 'inherit' }}>
+                    <td data-label="#">{index + 1}</td>
+                    <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
+                      <a href={`?username=${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`}>{item?.handle || item.did}</a>{' '}
+                      <a href={`?username=${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} title="View their block & list count">
                         <PersonOffIcon fontSize="small" />
                       </a>
-                      <Tooltip arrow title="View their social profile on BlueSky">
-                        <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer">
+                      <Tooltip arrow title="View their social profile on BlueSky. Right click and chose Private/Inconnito Window if you are blocked.">
+                        <a href={`https://bsky.app/profile/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
                           <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
                         </a>
                       </Tooltip>{' '}
                       <Tooltip arrow title="View who they are blocking on ClearSky.app">
-                        <a href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer">
+                        <a href={`https://clearsky.app/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
                           <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
                         </a>
                       </Tooltip>
-                    </>
-                  </td>
-                  <td data-label="When">
-                    <Tooltip arrow title={item.blocked_date.split('.')[0].replace('T', ' ')}>
-                      {getRelativeTime(item.blocked_date)}
-                    </Tooltip>
-                  </td>
-                  <td data-label="Name">{infoList[item.did]?.displayName || ''}</td>
-                  <td data-label="Description">{infoList[item.did]?.description || ''}</td>
-                </tr>
-              ))}
+                    </td>
+                    <td data-label="When">
+                      <Tooltip arrow title={item.blocked.blocked_date?.split('.')[0].replace('T', ' ')}>
+                        {getRelativeTime(item.blocked?.blocked_date)}
+                      </Tooltip>
+                    </td>
+                    <td data-label="Name">{item?.displayName || ''}</td>
+                    <td data-label="Description">{item?.description || ''}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         )}
@@ -308,37 +390,62 @@ function App() {
               <tr>
                 <th>#</th>
                 <th>List Name</th>
+                <th>Creator</th>
+                <th>Purpose</th>
                 <th>Description</th>
                 <th>Added</th>
                 <th>Created</th>
               </tr>
             </thead>
             <tbody>
-              {lists
+              {Array.from(blockersAndListers.values())
+                .filter((item) => item.lists.length > 0)
+                .flatMap((item) => item.lists)
                 .sort((a, b) => new Date(b.date_added) - new Date(a.date_added))
-                .map((item, index) => (
-                  <tr key={index}>
-                    <td data-label="#">{index + 1}</td>
-                    <td data-label="List Name" style={{ textAlign: 'left' }}>
-                      <Tooltip arrow title="View the list on BlueSky (may go to user profile instead)">
-                        <a href={item.url.split('/lists/')[0]} target="_blank" rel="noreferrer">
-                          {item.name}
+                .map((list, index) => {
+                  const item = blockersAndListers.get(list.did);
+                  return (
+                    <tr key={index} style={{ backgroundColor: item.blocked ? 'yellow' : 'inherit' }}>
+                      <td data-label="#">{index + 1}</td>
+                      <td data-label="List Name" style={{ textAlign: 'left' }}>
+                        <Tooltip arrow title="View the list on BlueSky. Right click and chose Private/Inconnito Window if you are blocked.">
+                          <a href={list.url} target="_blank" rel="noreferrer">
+                            {list.name}
+                          </a>
+                        </Tooltip>
+                      </td>
+                      <td data-label="Creator" style={{ textAlign: 'left' }}>
+                        {item?.displayName ? <div>{item.displayName}</div> : ''}
+                        <a href={`?username=${item?.handle || item.did}`}>{item?.handle || item.did}</a>{' '}
+                        <a href={`?username=${item?.handle || item.did}`} title="View their block & list count">
+                          <PersonOffIcon fontSize="small" />
                         </a>
-                      </Tooltip>
-                    </td>
-                    <td data-label="Description">{item.description || ''}</td>
-                    <td data-label="Added">
-                      <Tooltip arrow title={item.date_added.split('.')[0].replace('T', ' ')}>
-                        {getRelativeTime(item.date_added)}
-                      </Tooltip>
-                    </td>
-                    <td data-label="Created">
-                      <Tooltip arrow title={item.created_date.split('.')[0].replace('T', ' ')}>
-                        {getRelativeTime(item.created_date)}
-                      </Tooltip>
-                    </td>
-                  </tr>
-                ))}
+                        <Tooltip arrow title="View their social profile on BlueSky. Right click and chose Private/Inconnito Window if you are blocked.">
+                          <a href={`https://bsky.app/profile/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
+                            <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
+                          </a>
+                        </Tooltip>{' '}
+                        <Tooltip arrow title="View who they are blocking on ClearSky.app">
+                          <a href={`https://clearsky.app/${item?.handle || item.did}`} target="_blank" rel="noreferrer">
+                            <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
+                          </a>
+                        </Tooltip>
+                      </td>
+                      <td data-lable="Purpose">{list.purpose ? list.purpose.split('#')[1] : '???'}</td>
+                      <td data-label="Description">{list.description || ''}</td>
+                      <td data-label="Added">
+                        <Tooltip arrow title={list.date_added.split('.')[0].replace('T', ' ')}>
+                          {getRelativeTime(list.date_added)}
+                        </Tooltip>
+                      </td>
+                      <td data-label="Created">
+                        <Tooltip arrow title={list.created_date.split('.')[0].replace('T', ' ')}>
+                          {getRelativeTime(list.created_date)}
+                        </Tooltip>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         )}
@@ -355,54 +462,52 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(joint).map((did, index) => {
-                const item = { did, blocked_date: joint[did][0].blocked_date };
-                console.log(item, did, index);
-                return (
-                  <tr key={index}>
-                    <td data-label="#">{index + 1}</td>
-                    <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
-                      <>
-                        <a href={`?username=${infoList[item.did]?.handle || item.did}`}>{infoList[item.did]?.handle || item.did}</a>{' '}
-                        <Tooltip arrow title="View their block & list count">
-                          <a href={`?username=${infoList[item.did]?.handle || item.did}`}>
-                            <PersonOffIcon fontSize="small" />
-                          </a>
-                        </Tooltip>
-                        <Tooltip arrow title="View their social profile on BlueSky">
-                          <a href={`https://bsky.app/profile/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer">
-                            <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
-                          </a>
-                        </Tooltip>{' '}
-                        <Tooltip arrow title="View who they are blocking on ClearSky.app">
-                          <a href={`https://clearsky.app/${infoList[item.did]?.handle || item.did}`} target="_blank" rel="noreferrer">
-                            <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
-                          </a>
-                        </Tooltip>
-                      </>
-                    </td>
-                    <td data-label="BLOCKED">
-                      <Tooltip arrow title={item.blocked_date.split('.')[0].replace('T', ' ')}>
-                      {getRelativeTime(item.blocked_date)}
-                      </Tooltip>
-                    </td>
-                    <td data-label="Name">{infoList[item.did]?.displayName || ''}</td>
-                    <td data-label="Description">{infoList[item.did]?.description || ''}</td>
-                    <td data-label="Lists">
-                      {joint[did].map((list, index) => (
+              {Array.from(blockersAndListers.values())
+                .filter((item) => item.blocked && item.lists.length > 0)
+                .map((item, index) => {
+                  return (
+                    <tr key={index} style={{ backgroundColor: 'yellow' }}>
+                      <td data-label="#">{index + 1}</td>
+                      <td data-label="Handle/DID" style={{ textAlign: 'left' }}>
                         <>
-                          <Tooltip arrow title="View the list on BlueSky">
+                          <a href={`?username=${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`}>{item?.handle || item.did}</a>{' '}
+                          <Tooltip arrow title="View their block & list count">
+                            <a href={`?username=${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`}>
+                              <PersonOffIcon fontSize="small" />
+                            </a>
+                          </Tooltip>
+                          <Tooltip arrow title="View their social profile on BlueSky">
+                            <a href={`https://bsky.app/profile/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
+                              <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
+                            </a>
+                          </Tooltip>{' '}
+                          <Tooltip arrow title="View who they are blocking on ClearSky.app">
+                            <a href={`https://clearsky.app/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
+                              <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
+                            </a>
+                          </Tooltip>
+                        </>
+                      </td>
+                      <td data-label="BLOCKED">
+                        <Tooltip arrow title={item.blocked.blocked_date.split('.')[0].replace('T', ' ')}>
+                          {getRelativeTime(item.blocked.blocked_date)}
+                        </Tooltip>
+                      </td>
+                      <td data-label="Name">{item?.displayName || ''}</td>
+                      <td data-label="Description">{item?.description || ''}</td>
+                      <td data-label="Lists">
+                        {item.lists.map((list, index) => (
+                          <Tooltip arrow title="View the list on BlueSky" key={index}>
                             <a key={index} href={list.url} target="_blank" rel="noreferrer">
                               {list.name}
                             </a>
+                            <br />
                           </Tooltip>
-                          <br />
-                        </>
-                      ))}
-                    </td>
-                  </tr>
-                );
-              })}
+                        ))}
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         )}
