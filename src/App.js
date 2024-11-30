@@ -177,7 +177,6 @@ function App() {
 
   useEffect(() => {
     const fetchUserLists = async () => {
-      const uLists = {};
       for (const [did, obj] of blockersAndListers) {
         if (obj.lists.length === 0) {
           continue;
@@ -186,12 +185,11 @@ function App() {
           const url = `https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=${did}`;
           const getListsResponse = await fetch(url);
           const getListData = await getListsResponse.json();
-          uLists[did] = getListData.lists;
+          setUserLists(prev => ({ ...prev, [did]: getListData.lists }));
         } catch (error) {
           console.error(`Failed to fetch user's lists for DID: ${did}`);
         }
       }
-      setUserLists(uLists);
     };
 
     if (!editingUsername && allListsFetched && blockersAndListers.size && !fetchingUserLists) {
