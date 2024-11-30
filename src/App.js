@@ -429,7 +429,7 @@ function App() {
                           </a>
                         </Tooltip>
                       </td>
-                      <td data-lable="Purpose">{list.purpose ? list.purpose.split('#')[1] : '???'}</td>
+                      <td data-lable="Purpose">{list.purpose?.split('#')[1] === "modlist" ? "mute/block" : list.purpose?.split('#')[1] === "curatelist" ? "curate" : "unknown"}</td>
                       <td data-label="Description">{list.description || ''}</td>
                       <td data-label="Added">
                         <Tooltip arrow title={list.date_added.split('.')[0].replace('T', ' ')}>
