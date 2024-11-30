@@ -1,6 +1,5 @@
 # BlueSky Block List Netlify App
 
-```markdown
 To get started with the BlueSky Block List Netlify App, follow these steps:
 
 1. Clone the repository:
@@ -27,4 +26,4 @@ To get started with the BlueSky Block List Netlify App, follow these steps:
   ```sh
   netlify dev
   ```
-```
+
