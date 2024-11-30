@@ -4,7 +4,7 @@ To get started with the BlueSky Block List Netlify App, follow these steps:
 
 1. Clone the repository:
   ```sh
-  git clone git@github.com:richmagabskey/bsky-blocks.git
+  git clone https://github.com/richmagabs/bsky-blocks.git
   ```
 
 2. Navigate to the project directory:
