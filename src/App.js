@@ -452,6 +452,7 @@ function App() {
                   <DataObjectIcon sx={{ width: '16px' }} />
                 </a>
               </Tooltip>
+              <div style={{fontSize: '0.6em'}}>{userProfile ? <><a href={`https://bsky.app/profile/${username}/followers`} target="_blank" rel="noreferrer" style={{color: "inherit", textDecoration: 'none', fotWeight: 'bold'}}>{userProfile.followersCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} followers</a>, <a href={`https://bsky.app/profile/${username}/follows`} target="_blank" rel="noreferrer" style={{color: "inherit", textDecoration: 'none', fotWeight: 'bold'}}>{userProfile.followsCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} following</a></> : ''}</div>
             </div>
           </Grid>
         </Grid>
