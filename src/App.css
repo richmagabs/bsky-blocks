@@ -83,6 +83,12 @@ table th {
     margin-bottom: 10px;
   }
 
+  .responsive-table tr td:first-child {
+    background: #243cf0;
+    font-weight: bold;
+    color: white;
+  }
+
   .responsive-table td {
     display: block;
     text-align: left;
