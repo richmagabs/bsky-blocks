@@ -17,45 +17,47 @@ const paramUsername = new URLSearchParams(window.location.search).get('username'
 function getUserDisplay(item, extra) {
   return (
     <Grid container spacing={1}>
-    {item?.avatar && (
+      {item?.avatar && (
+        <Grid>
+          <a href={`https://bsky.app/profile/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
+            <img
+              src={item.avatar}
+              alt="avatar"
+              style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                marginRight: '10px',
+              }}
+            />
+          </a>
+        </Grid>
+      )}
       <Grid>
-      <img
-        src={item.avatar}
-        alt="avatar"
-        style={{
-      width: '50px',
-      height: '50px',
-      borderRadius: '50%',
-      marginRight: '10px',
-        }}
-      />
+        {item?.displayName ? <div>{item?.displayName}</div> : ''}
+        <a href={`?username=${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`}>{item?.handle || item.did}</a> <br />
+        <Tooltip arrow title="View their block & list count">
+          <a href={`?username=${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`}>
+            <PersonOffIcon fontSize="small" />
+          </a>
+        </Tooltip>{' '}
+        <Tooltip arrow title="View their social profile on BlueSky. Right click and chose Private/Incognito Window if you are blocked.">
+          <a href={`https://bsky.app/profile/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
+            <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
+          </a>
+        </Tooltip>{' '}
+        <Tooltip arrow title="View who they are blocking on ClearSky.app">
+          <a href={`https://clearsky.app/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
+            <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
+          </a>
+        </Tooltip>
+        <Tooltip arrow title="View user data from BlueSky API">
+          <a href={`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${item.did}`} target="_blank" rel="noreferrer">
+            <DataObjectIcon />
+          </a>
+        </Tooltip>
+        {extra}
       </Grid>
-    )}
-    <Grid>
-      {item?.displayName ? <div>{item?.displayName}</div> : ''}
-      <a href={`?username=${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`}>{item?.handle || item.did}</a> <br />
-      <Tooltip arrow title="View their block & list count">
-        <a href={`?username=${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`}>
-          <PersonOffIcon fontSize="small" />
-        </a>
-      </Tooltip>{' '}
-      <Tooltip arrow title="View their social profile on BlueSky. Right click and chose Private/Incognito Window if you are blocked.">
-        <a href={`https://bsky.app/profile/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
-          <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
-        </a>
-      </Tooltip>{' '}
-      <Tooltip arrow title="View who they are blocking on ClearSky.app">
-        <a href={`https://clearsky.app/${item?.handle && item.handle !== 'USER NOT FOUND' ? item.handle : item.did}`} target="_blank" rel="noreferrer">
-          <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
-        </a>
-      </Tooltip>
-      <Tooltip arrow title="View user data from BlueSky API">
-        <a href={`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${item.did}`} target="_blank" rel="noreferrer">
-          <DataObjectIcon />
-        </a>
-      </Tooltip>
-      {extra}
-    </Grid>
     </Grid>
   );
 }
@@ -407,7 +409,7 @@ function App() {
                 .map((item, index) => (
                   <tr key={index} style={{ backgroundColor: item.lists.length ? 'yellow' : 'inherit' }}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Blocked By" style={{ textAlign: 'left', minWidth: "300px" }}>
+                    <td data-label="Blocked By" style={{ textAlign: 'left', minWidth: '300px' }}>
                       {getUserDisplay(item)}
                     </td>
                     <td data-label="When">
@@ -450,7 +452,12 @@ function App() {
                             {list.name}
                           </a>
                         </Tooltip>
-                        <br />
+                        <div>
+                        <Tooltip arrow title="View the list on BlueSky. Right click and chose Private/Incognito Window if you are blocked.">
+                          <a href={list.url} target="_blank" rel="noreferrer">
+                            <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
+                          </a>
+                        </Tooltip>
                         {list.uri && (
                           <Tooltip
                             arrow
@@ -461,14 +468,17 @@ function App() {
                             </a>
                           </Tooltip>
                         )}
+                        </div>
                       </td>
                       <td data-label="Creator" style={{ textAlign: 'left', minWidth: '300px' }}>
-                        {getUserDisplay(item, 
-                        <Tooltip arrow title="View ALL their lists from the API (JSON)">
-                          <a href={`https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=${item.did}`} target="_blank" rel="noreferrer">
-                            <ListAltIcon />
-                          </a>
-                        </Tooltip>)}
+                        {getUserDisplay(
+                          item,
+                          <Tooltip arrow title="View ALL their lists from the API (JSON)">
+                            <a href={`https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=${item.did}`} target="_blank" rel="noreferrer">
+                              <ListAltIcon />
+                            </a>
+                          </Tooltip>
+                        )}
                       </td>
                       <td data-lable="Purpose">{list.purpose?.split('#')[1] === 'modlist' ? 'mute/block' : list.purpose?.split('#')[1] === 'curatelist' ? 'curate' : 'unknown'}</td>
                       <td data-label="Description">{list.description || ''}</td>
