@@ -490,7 +490,7 @@ function App() {
                   <tr key={index}>
                     <td data-label="#">{index + 1}</td>
                     <td data-label="Blocked By" style={{ textAlign: 'left', minWidth: '300px' }}>
-                      {getUserDisplay(item, item.lists.length > 0 && (<div style={{ marginTop: '10px', backgroundColor: 'red', 'color': 'white', textAlign: 'center' }}>user also has you on a list</div>))}
+                      {getUserDisplay(item, item.lists.length > 0 && (<div style={{ marginTop: '10px', backgroundColor: 'red', 'color': 'white', textAlign: 'center' }}>also has user on a list</div>))}
                     </td>
                     <td data-label="When">
                       <Tooltip arrow title={item.blocked.blocked_date?.split('.')[0].replace('T', ' ')}>
