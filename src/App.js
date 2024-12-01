@@ -425,7 +425,7 @@ function App() {
         </Grid>
         {error ? <p>Error: {error}</p> : ''}
         <div style={{ paddingTop: '10px' }}>
-          {!error && (!allBlockersFetched || !allListsFetched) && username !== 'your_username_here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
+          {!error && !editingUsername && (!allBlockersFetched || !allListsFetched) && username !== 'your_username_here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
         </div>
       </header>
       <div>
