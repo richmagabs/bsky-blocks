@@ -10,9 +10,12 @@ import ListAltIcon from '@mui/icons-material/ListAlt';
 const paramUsername = new URLSearchParams(window.location.search).get('username') || 'your_username_here.bsky.social';
 
 // APIS:
-// https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=did:plc:jyfkclsce5jemyvrgkxywsdy
-// https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list=at://did:plc:6rah3qput4aol2iu2ecaglhm/app.bsky.graph.list/3lb5o7l3g3j2g&limit=100
-//   Next page: https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list=at://did:plc:jyfkclsce5jemyvrgkxywsdy/app.bsky.graph.list/3lc4puz3frp27&limit=100&cursor=3lc53bwv44i2x
+// Get DID: https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${username}
+// Get Profile: https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${username|did}
+// Get Blocklist: https://api.clearsky.services/api/v1/anon/single-blocklist/${did}/${page}
+// Get User's Lists: https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=did:plc:jyfkclsce5jemyvrgkxywsdy
+// Get List & Items: https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list=at://did:plc:6rah3qput4aol2iu2ecaglhm/app.bsky.graph.list/3lb5o7l3g3j2g&limit=100
+//        Next page: https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list=at://did:plc:jyfkclsce5jemyvrgkxywsdy/app.bsky.graph.list/3lc4puz3frp27&limit=100&cursor=3lc53bwv44i2x
 
 function getUserDisplay(item, extra) {
   return (
@@ -51,9 +54,9 @@ function getUserDisplay(item, extra) {
             <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
           </a>
         </Tooltip>
-        <Tooltip arrow title="View user data from BlueSky API">
-          <a href={`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${item.did}`} target="_blank" rel="noreferrer">
-            <DataObjectIcon />
+        <Tooltip arrow title="View user's profile from BlueSky API">
+          <a href={`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${item.did}`} target="_blank" rel="noreferrer" style={{verticalAlign: "middle", paddingLeft: "2px"}}>
+            <DataObjectIcon sx={{width: "16px"}} />
           </a>
         </Tooltip>
         {extra}
@@ -64,7 +67,7 @@ function getUserDisplay(item, extra) {
 
 function App() {
   const [username, setUsername] = useState(paramUsername);
-  const [did, setDid] = useState('');
+  const [userProfile, setUserProfile] = useState(null);
   const [error, setError] = useState(null);
 
   const [blockersAndListers, setBlockersAndListers] = useState(new Map());
@@ -95,16 +98,15 @@ function App() {
   }, [username, editingUsername]);
 
   useEffect(() => {
-    const fetchDid = async () => {
+    const fetchUserProfile = async () => {
       try {
         // Fetch the DID
-        const didResponse = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${username}`);
-        if (didResponse.status !== 200) {
+        const profileResponse = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${username}`);
+        if (profileResponse.status !== 200) {
           setError('User not found');
           return;
         }
-        const didData = await didResponse.json();
-        setDid(didData.did);
+        setUserProfile(await profileResponse.json());
       } catch (error) {
         setError(error.message);
       }
@@ -132,7 +134,7 @@ function App() {
       if (username.startsWith('did:')) {
         redirectToUsername();
       } else if (username !== 'your_username_here.bsky.social') {
-        fetchDid();
+        fetchUserProfile();
       }
     }
   }, [username, editingUsername]);
@@ -141,7 +143,7 @@ function App() {
     const fetchPagedBlockList = async (username) => {
       try {
         // Fetch blocklist data until the blocklist array count is less than 100
-        const url = `https://api.clearsky.services/api/v1/anon/single-blocklist/${did}${blockPage > 1 ? `/${blockPage}` : ''}`;
+        const url = `https://api.clearsky.services/api/v1/anon/single-blocklist/${userProfile.did}${blockPage > 1 ? `/${blockPage}` : ''}`;
         let attempts = 0;
         let blocklistResponse;
         while (attempts < 10) {
@@ -174,16 +176,16 @@ function App() {
       }
     };
 
-    if (did && !allBlockersFetched && !editingUsername) {
+    if (userProfile && !allBlockersFetched && !editingUsername) {
       fetchPagedBlockList();
     }
-  }, [did, blockPage, allBlockersFetched, editingUsername]);
+  }, [userProfile, blockPage, allBlockersFetched, editingUsername]);
 
   useEffect(() => {
     const fetchPagedLists = async (username) => {
       try {
         // Fetch lists data until the lists array count is less than 100
-        const url = `https://api.clearsky.services/api/v1/anon/get-list/${did}${listPage > 1 ? `/${listPage}` : ''}`;
+        const url = `https://api.clearsky.services/api/v1/anon/get-list/${userProfile.did}${listPage > 1 ? `/${listPage}` : ''}`;
         let attempts = 0;
         let listResponse;
         while (attempts < 10) {
@@ -226,10 +228,10 @@ function App() {
       }
     };
 
-    if (did && !allListsFetched && !editingUsername) {
+    if (userProfile && !allListsFetched && !editingUsername) {
       fetchPagedLists();
     }
-  }, [did, listPage, allListsFetched, editingUsername]);
+  }, [userProfile, listPage, allListsFetched, editingUsername]);
 
   useEffect(() => {
     const fetchUserLists = async () => {
@@ -353,32 +355,77 @@ function App() {
         <h1>
           <PersonOffIcon /> BlueSky Block Count <PersonOffIcon />
         </h1>
-        <div>
-          User:{' '}
-          {editingUsername ? (
-            <TextField
-              size="small"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onBlur={() => setEditingUsername(false)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  setEditingUsername(false);
-                }
-              }}
-              fullWidth
-              sx={{ input: { color: 'white' } }}
-              style={{ display: 'inline' }}
-            />
-          ) : (
-            <span style={{ color: 'white', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setEditingUsername(true)}>
-              {username}
-            </span>
-          )}
-          {error ? <p>Error: {error}</p> : ''}
-          <div style={{ paddingTop: '10px' }}>
-            {!error && (!allBlockersFetched || !allListsFetched) && username !== 'your_username_here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
-          </div>
+        <Grid container spacing={2}>
+          <Grid>
+            {userProfile?.avatar ? (
+              <a href={`https://bsky.app/profile/${userProfile.handle}`} target="_blank" rel="noreferrer">
+                <img
+                  src={userProfile.avatar}
+                  alt="avatar"
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '50%',
+                    marginRight: '10px',
+                  }}
+                />
+              </a>
+            ) : (
+              <a href="/">
+                <PersonOffIcon
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '50%',
+                    marginRight: '10px',
+                    backgroundColor: 'gray',
+                  }}
+                />
+              </a>
+            )}
+          </Grid>
+          <Grid sx={{minWidth: "280px"}}>
+            {editingUsername ? (
+              <TextField
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onBlur={() => setEditingUsername(false)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    setEditingUsername(false);
+                  }
+                }}
+                fullWidth
+                sx={{ input: { color: 'white', fontWeight: "bold" } }}
+                style={{ display: 'inline' }}
+              />
+            ) : (
+              <span style={{ color: 'white', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setEditingUsername(true)}>
+                {username}
+              </span>
+            )}
+            <div>
+              <Tooltip arrow title="View user's social profile on BlueSky">
+                <a href={`https://bsky.app/profile/${username}`} target="_blank" rel="noreferrer">
+                  <img src="/bsky.png" width="16" height="16" alt="BlueSky" />
+                </a>
+              </Tooltip>{' '}
+              <Tooltip arrow title="View who this user on ClearSky.app">
+                <a href={`https://clearsky.app/${username}`} target="_blank" rel="noreferrer">
+                  <img src="https://clearsky.app/favicon.ico" alt="ClearSky" style={{ width: '16px', height: '16px' }} />
+                </a>
+              </Tooltip>
+              <Tooltip arrow title="View this user's profile from BlueSky API">
+                <a href={`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${username}`} target="_blank" rel="noreferrer" style={{verticalAlign: "middle", paddingLeft: "2px"}}>
+                  <DataObjectIcon sx={{width: "16px"}} />
+                </a>
+              </Tooltip>
+            </div>
+          </Grid>
+        </Grid>
+        {error ? <p>Error: {error}</p> : ''}
+        <div style={{ paddingTop: '10px' }}>
+          {!error && (!allBlockersFetched || !allListsFetched) && username !== 'your_username_here.bsky.social' && <CircularProgress size={30} style={{ color: 'white' }} />}
         </div>
       </header>
       <div>
@@ -417,7 +464,7 @@ function App() {
                         {getRelativeTime(item.blocked?.blocked_date)}
                       </Tooltip>
                     </td>
-                    <td data-label="Description">{item?.description || ''}</td>
+                    <td data-label="Description">{item?.description || <>&nbsp;</>}</td>
                   </tr>
                 ))}
             </tbody>
@@ -453,21 +500,21 @@ function App() {
                           </a>
                         </Tooltip>
                         <div>
-                        <Tooltip arrow title="View the list on BlueSky. Right click and chose Private/Incognito Window if you are blocked.">
-                          <a href={list.url} target="_blank" rel="noreferrer">
-                            <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
-                          </a>
-                        </Tooltip>
-                        {list.uri && (
-                          <Tooltip
-                            arrow
-                            title='API data of the list, including blocked users. Add &cursor=<cursor> to the end, <cursor> being the value of \"cursor\" in the previous response.'
-                          >
-                            <a href={`https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list=${list.uri}&limit=100`} target="_blank" rel="noreferrer">
-                              <DataObjectIcon />
+                          <Tooltip arrow title="View the list on BlueSky. Right click and chose Private/Incognito Window if you are blocked.">
+                            <a href={list.url} target="_blank" rel="noreferrer">
+                              <img src="https://bsky.app/static/favicon-16x16.png" alt="BlueSky" />
                             </a>
                           </Tooltip>
-                        )}
+                          {list.uri && (
+                            <Tooltip
+                              arrow
+                              title='API data of the list, including blocked users. Add &cursor=<cursor> to the end, <cursor> being the value of \"cursor\" in the previous response.'
+                            >
+                              <a href={`https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list=${list.uri}&limit=100`} target="_blank" rel="noreferrer">
+                                <DataObjectIcon sx={{width: "16px"}} />
+                              </a>
+                            </Tooltip>
+                          )}
                         </div>
                       </td>
                       <td data-label="Creator" style={{ textAlign: 'left', minWidth: '300px' }}>
@@ -475,7 +522,7 @@ function App() {
                           item,
                           <Tooltip arrow title="View ALL their lists from the API (JSON)">
                             <a href={`https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=${item.did}`} target="_blank" rel="noreferrer">
-                              <ListAltIcon />
+                              <ListAltIcon sx={{width: "16px"}} />
                             </a>
                           </Tooltip>
                         )}
@@ -539,7 +586,7 @@ function App() {
                         <div>
                           <Tooltip arrow title="View ALL their lists from the API (JSON)">
                             <a href={`https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=${item.did}`} target="_blank" rel="noreferrer">
-                              <ListAltIcon />
+                              <ListAltIcon sx={{width: "16px"}} />
                             </a>
                           </Tooltip>
                         </div>
