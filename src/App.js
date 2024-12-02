@@ -93,6 +93,7 @@ function App() {
   const [userLists, setUserLists] = useState({});
   const [fetchingUserLists, setFetchingUserLists] = useState(false);
   const [purpose, setPurpose] = useState('all');
+  const [blockingCount, setBlockingCount] = useState(0);
 
   useEffect(() => {
     if (username !== paramUsername && !editingUsername) {
@@ -353,6 +354,26 @@ function App() {
     }
   }, [blockersAndListers, fetchingProfiles, lastProfileFetched]);
 
+  useEffect(() => {
+    const fetchBlockingCount = async () => {
+      try {
+        const response = await fetch(`https://api.clearsky.services/api/v1/anon/blocklist/total/${userProfile.did}`);
+        if (response.status === 200) {
+          const responseData = await response.json();
+          setBlockingCount(responseData.data.count);
+        } else {
+          console.error('Failed to fetch blocking count');
+        }
+      } catch (error) {
+        console.error('Error fetching blocking count:', error);
+      }
+    };
+
+    if (userProfile && !editingUsername) {
+      fetchBlockingCount();
+    }
+}, [userProfile, editingUsername]);
+
   const getRelativeTime = (date) => {
     const now = new Date();
     const diff = Math.floor((now - new Date(date)) / 1000); // difference in seconds
@@ -374,6 +395,28 @@ function App() {
     .filter((item) => item.lists.length > 0)
     .flatMap((item) => item.lists);
   const blocks = Array.from(blockersAndListers.values()).filter((item) => item.blocked !== null);
+  const listInfo = {
+    all: {
+      name: 'All Lists',
+      count: lists.length,
+    },
+    modlist: {
+      name: 'Mute/Block Lists',
+      count: lists.filter((list) => list.purpose?.endsWith('#modlist')).length,
+    },
+    curatelist: {
+      name: 'Curate Lists',
+      count: lists.filter((list) => list.purpose?.endsWith('#curatelist')).length,
+    },
+    starterpack: {
+      name: 'Starter Packs',
+      count: lists.filter((list) => list.purpose?.endsWith('#starterpack')).length,
+    },
+    other: {
+      name: 'Other Lists',
+      count: lists.filter((list) => !['modlist', 'curatelist', 'starterpack'].includes(list.purpose?.split('#')[1])).length,
+    },
+  }
 
   return (
     <div className="App">
@@ -452,7 +495,7 @@ function App() {
                   <DataObjectIcon sx={{ width: '16px' }} />
                 </a>
               </Tooltip>
-              <div style={{fontSize: '0.6em'}}>{userProfile ? <><a href={`https://bsky.app/profile/${username}/followers`} target="_blank" rel="noreferrer" style={{color: "inherit", textDecoration: 'none', fotWeight: 'bold'}}>{userProfile.followersCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} followers</a>, <a href={`https://bsky.app/profile/${username}/follows`} target="_blank" rel="noreferrer" style={{color: "inherit", textDecoration: 'none', fotWeight: 'bold'}}>{userProfile.followsCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} following</a></> : ''}</div>
+              <div style={{fontSize: '0.6em'}}>{userProfile ? <><a href={`https://bsky.app/profile/${username}/followers`} target="_blank" rel="noreferrer" style={{color: "inherit", textDecoration: 'none'}}><span style={{fotWeight: 'bold'}}>{userProfile.followersCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</span> followers</a>, <a href={`https://bsky.app/profile/${username}/follows`} target="_blank" rel="noreferrer" style={{color: "inherit", textDecoration: 'none'}}><span style={{fotWeight: 'bold'}}>{userProfile.followsCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</span> following</a>, <a href={`https://clearsky.app/${username}/blocking`} target="_blank" rel="noreferrer" style={{color: "inherit", textDecoration: 'none'}}><span style={{fotWeight: 'bold'}}>{blockingCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</span> blocking</a></> : ''}</div>
             </div>
           </Grid>
         </Grid>
@@ -466,7 +509,7 @@ function App() {
       <div>
         <Tabs value={tabValue} onChange={handleTabChange} centered>
           <Tab label={`Blocked By (${blocks.length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
-          <Tab label={`Lists (${lists.length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
+          <Tab label={`${listInfo[purpose].name} (${listInfo[purpose].count})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
           <Tooltip arrow title={<h1>BLOCK these users if you make another account so to not be on their list again. They BOTH blocked you & listed you.</h1>}>
             <Tab
               label={`BOTH (${Array.from(blockersAndListers.values()).filter((item) => item.blocked !== null && item.lists.length > 0).length})`}
@@ -509,12 +552,13 @@ function App() {
             <Grid container spacing={2} justifyContent="center" style={{ marginBottom: '20px', paddingTop: '20px' }}>
               <Grid item>
                 <FormControl variant="outlined" sx={{ minWidth: 200 }}>
-                  <InputLabel>Purpose</InputLabel>
+                  <InputLabel>List Type</InputLabel>
                   <Select value={purpose} onChange={(e) => setPurpose(e.target.value)} label="Purpose">
-                    <MenuItem value="all">All Lists ({lists.length})</MenuItem>
-                    <MenuItem value="modlist">Mute/Block Lists ({lists.filter((list) => list.purpose?.endsWith('#modlist')).length})</MenuItem>
-                    <MenuItem value="curatelist">Curate Lists ({lists.filter((list) => list.purpose?.endsWith('#curatelist')).length})</MenuItem>
-                    <MenuItem value="starterpack">Starter Packs ({lists.filter((list) => list?.purpose?.endsWith('#starterpack')).length})</MenuItem>
+                    <MenuItem value="all">{listInfo.all.name} ({listInfo.all.count})</MenuItem>
+                    <MenuItem value="modlist">{listInfo.modlist.name} ({listInfo.modlist.count})</MenuItem>
+                    <MenuItem value="curatelist">{listInfo.curatelist.name} ({listInfo.curatelist.count})</MenuItem>
+                    <MenuItem value="starterpack">{listInfo.starterpack.name} ({listInfo.starterpack.count})</MenuItem>
+                    <MenuItem value="other">{listInfo.other.name} ({listInfo.other.count})</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -533,7 +577,7 @@ function App() {
               </thead>
               <tbody>
                 {lists
-                  .filter((list) => list.purpose?.endsWith(`#${purpose}`) || purpose === 'all')
+                  .filter((list) => list.purpose?.endsWith(`#${purpose}`) || purpose === 'all' || (purpose === 'other' && !['curatelist', 'modlist', 'starterpack'].includes(list.purpose?.split('#')[1])))
                   .sort((a, b) => new Date(b.date_added) - new Date(a.date_added))
                   .map((list, index) => {
                     const item = blockersAndListers.get(list.did);
