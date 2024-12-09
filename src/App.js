@@ -291,9 +291,6 @@ function App() {
                     userList.url = userList.uri.replace('at://', 'https://bsky.app/profile/').replace('app.bsky.graph.list', 'lists');
                   }
                   obj.lists[index] = { ...existingList, ...userList };
-                  if (userList.purpose.endsWith('#modlist') && !obj.blocked) {
-                    obj.blocked = { blocked_date: existingList.date_added, did: did };
-                  }
                 }
               });
             }
