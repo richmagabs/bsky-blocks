@@ -507,12 +507,6 @@ function App() {
         <Tabs value={tabValue} onChange={handleTabChange} centered>
           <Tab label={`Blocked By (${blocks.length})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
           <Tab label={`${listInfo[purpose].name} (${listInfo[purpose].count})`} sx={{ fontSize: '1.2em', fontWeight: 'bold' }} />
-          <Tooltip arrow title={<h1>BLOCK these users if you make another account so to not be on their list again. They BOTH blocked you & listed you.</h1>}>
-            <Tab
-              label={`BOTH (${Array.from(blockersAndListers.values()).filter((item) => item.blocked !== null && item.lists.length > 0).length})`}
-              sx={{ fontSize: '1.2em', fontWeight: 'bold' }}
-            />
-          </Tooltip>
         </Tabs>
         {tabValue === 0 && (
           <table className="responsive-table">
@@ -667,58 +661,6 @@ function App() {
               </tbody>
             </table>
           </>
-        )}
-        {tabValue === 2 && (
-          <table className="responsive-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Blocked/Listed By</th>
-                <th>When</th>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Lists</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from(blockersAndListers.values())
-                .filter((item) => item.blocked && item.lists.length > 0)
-                .map((item, index) => {
-                  return (
-                    <tr key={index}>
-                      <td data-label="#">{index + 1}</td>
-                      <td data-label="Blocked By" style={{ textAlign: 'left', minWidth: '300px' }}>
-                        {getUserDisplay(item)}
-                      </td>
-                      <td data-label="When">
-                        <Tooltip arrow title={item.blocked.blocked_date.split('.')[0].replace('T', ' ')}>
-                          {getRelativeTime(item.blocked.blocked_date)}
-                        </Tooltip>
-                      </td>
-                      <td data-label="Name">{item?.displayName || ''}</td>
-                      <td data-label="Description">{item?.description || ''}</td>
-                      <td data-label="Lists">
-                        {item.lists.map((list, index) => (
-                          <Tooltip arrow title="View the list on BlueSky. Right click and choose Private/Incognito Window if you are blocked" key={index}>
-                            <a key={index} href={list.url} target="_blank" rel="noreferrer">
-                              {list.name}
-                            </a>
-                            <br />
-                          </Tooltip>
-                        ))}
-                        <div>
-                          <Tooltip arrow title="View ALL their lists from the API (JSON)">
-                            <a href={`https://public.api.bsky.app/xrpc/app.bsky.graph.getLists?actor=${item.did}`} target="_blank" rel="noreferrer">
-                              <ListAltIcon sx={{ width: '16px' }} />
-                            </a>
-                          </Tooltip>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
         )}
       </div>
     </div>
